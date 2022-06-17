@@ -1,0 +1,683 @@
+<style scoped>
+  .top-20 {
+    margin-top: 20px
+  }
+
+  .left-30 {
+    margin-left: 20px
+  }
+
+  .left-100 {
+    margin-left: 100px
+  }
+</style>
+
+<template>
+  <a-layout>
+    <a-layout-header>
+        <a-radio-group v-model:value="symbol" button-style="solid" @change="onChangeSymbol">
+          <a-radio-button value="BTC">BTC</a-radio-button>
+          <a-radio-button value="USDT">USDT</a-radio-button>
+        </a-radio-group>
+
+        <a-radio-group class="left-100" v-model:value="showType" button-style="solid" @change="onChangeOrderShow">
+          <a-radio-button :value="1">我的委托</a-radio-button>
+          <a-radio-button :value="2">我的撤单</a-radio-button>
+          <a-radio-button :value="3">我的成交</a-radio-button>
+          <a-radio-button :value="4">成交记录</a-radio-button>
+        </a-radio-group>
+
+        <a-button class="left-30" type="primary" @click="logOut">退出</a-button>
+
+        <a-button class="left-30" type="primary" @click="robotCreateOrder">机器人挂单</a-button>
+    </a-layout-header>
+
+    <a-layout>
+      <a-layout-sider theme="light" width="50%" class="height: 100%">
+        <a-layout>
+          <a-layout-sider theme="light" width="50%" class="height: 100%">
+            <!-- <a-row class="top-20">
+              <a-col :span="24">
+                <a-statistic title="当前价格" :value="topNData.now" />
+              </a-col>
+            </a-row> -->
+            <!-- <a-col :span="16" :offset="4">
+              <a-list :grid="{ gutter: 6, xs: 1, sm: 1, md: 1, lg: 1, xl: 1, xxl: 1 }" item-layout="horizontal" size="small" bordered :data-source="topNData.sell">
+                <template #renderItem="{ item }">
+                  <a-list-item>{{ item.price }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ item.amount }}</a-list-item>
+                </template>
+                <template #header>
+                  <a-list-item>价格&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;数量</a-list-item>
+                  <a-list-item>卖单</a-list-item>
+                </template>
+              </a-list>
+
+              <a-list :grid="{ gutter: 6, xs: 1, sm: 1, md: 1, lg: 1, xl: 1, xxl: 1 }" item-layout="horizontal" size="small" bordered :data-source="topNData.buy">
+                <template #renderItem="{ item }">
+                  <a-list-item>{{ item.price }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{ item.amount }}</a-list-item>
+                </template>
+                <template #header>
+                  <a-list-item>买单</a-list-item>
+                </template>
+              </a-list>
+            </a-col> -->
+            <a-col class="top-20" :span="16" :offset="4">
+            <a-table :columns="topNDataColumns" :data-source="topNDataTable" :bordered="false" :pagination="false">
+              <template #name="{ text }">
+                <a>{{ text }}</a>
+              </template>
+              <template #bodyCell="{ record }">
+                <template v-if="record.name === '最新价'">
+                  <a-typography-text type="danger">{{record.name}}</a-typography-text>
+                  
+                </template>
+              </template>
+            </a-table>
+            </a-col>
+
+          </a-layout-sider>
+          
+        <a-layout-content>
+          <h3 :style="{ marginBottom: '16px', marginTop: '16px' }"> 用户：{{user.name}}，总市值：{{user.totalMoney}}，余额：{{user.money}}</h3>
+          <a-col :span="20" :offset="2">
+            <a-list :grid="{ gutter: 6, xs: 1, sm: 1, md: 1, lg: 1, xl: 1, xxl: 1 }" item-layout="horizontal" size="small" bordered :data-source="user.stocks">
+            <template #header>
+                <a-list-item>我的存量</a-list-item>
+              </template>
+              <template #renderItem="{ item }">
+                <a-list-item>{{ item.Symbol }} - 总市值：{{ item.StockNum + item.BandStockNum }}，可用：{{item.StockNum}}</a-list-item>
+              </template>
+            </a-list>
+          </a-col>
+
+          <a-col :xs="16" :sm="16" :md="16" :lg="16" :xl="16" :offset="4">
+            <a-form
+              layout="horizontal"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+              :model="formState"
+              @finish="handleFinish"
+              @finishFailed="handleFinishFailed"
+              style="margin: 100px auto; text-align:center"
+            >
+              <a-form-item label="交易标">
+                <a-select v-model:value="formState.symbol" placeholder="请选择" @change="onChangeCreateSymbol">
+                  <a-select-option value="BTC">BTC</a-select-option>
+                  <a-select-option value="USDT">USDT</a-select-option>
+                </a-select>
+              </a-form-item>
+              <a-form-item label="挂单类型">
+                <a-select v-model:value="formState.action" placeholder="请选择" @change="onChangeAction">
+                  <a-select-option :value=0>挂单</a-select-option>
+                  <!-- <a-select-option :value=1>撤单</a-select-option> -->
+                </a-select>
+              </a-form-item>
+              <div v-show="createShow">
+                <a-form-item label="竞价类型">
+                  <a-select v-model:value="formState.type" placeholder="请选择">
+                    <a-select-option :value=0>普通竞价</a-select-option>
+                  </a-select>
+                </a-form-item>
+                <a-form-item label="交易类型">
+                  <!-- <a-select v-model:value="formState.side" placeholder="请选择">
+                    <a-select-option :value=0>买</a-select-option>
+                    <a-select-option :value=1>卖</a-select-option>
+                  </a-select> -->
+                  <a-radio-group v-model:value="formState.side" name="side">
+                    <a-radio :value=0>买</a-radio>
+                    <a-radio :value=1>卖</a-radio>
+                  </a-radio-group>
+                </a-form-item>
+                <a-form-item label="价格">
+                  <a-input v-model:value="formState.price" />
+                </a-form-item>
+                <a-form-item label="数量">
+                  <a-input v-model:value="formState.amount" />
+                </a-form-item>
+                <a-form-item :wrapper-col="{ span: 14, offset: 8 }">
+                  <a-button
+                      type="primary"
+                      html-type="submit"
+                      :disabled="formState.amount === 0 || formState.price === 0"
+                    >
+                      提交
+                    </a-button>
+                </a-form-item>
+              </div>
+            </a-form>
+          </a-col>
+        </a-layout-content>
+        
+        </a-layout>
+
+      </a-layout-sider>
+      <a-layout-content>
+        <a-table v-if="showType == 1" :columns="orderColumns" :data-source="orderData">
+          <template #name="{ text }">
+            <a>{{ text }}</a>
+          </template>
+          <template #bodyCell="{ column, record }">
+          
+            <template v-if="column.key === 'Action'">
+              <span v-if="record.Action === 0">挂单</span>
+              <span v-if="record.Action === 1">撤单</span>
+            </template>
+
+            <template v-if="column.key === 'Side'">
+              <span v-if="record.Side === 0">买</span>
+              <span v-if="record.Side === 1">卖</span>
+            </template>
+
+            <template v-if="column.key === 'Amount'">
+              <span>{{record.Deal_amount}}/{{record.Amount}}</span>
+            </template>
+
+            <template v-if="column.key === 'Status'">
+              <span v-if="record.Status === 0">未成交</span>
+              <span v-if="record.Status === 1">交易成功</span>
+              <span v-if="record.Status === 2">部分成交</span>
+              <span v-if="record.Status === 3">已撤单</span>
+            </template>
+
+            <template v-if="column.key === 'Update' && (record.Status == 0 || record.Status == 2)">
+              <span>
+                <a @click="cancelOrder(record.Orderid)">撤单</a>
+                <!-- <a-divider type="vertical" /> -->
+              </span>
+            </template>
+          </template>
+        </a-table>
+        <a-table v-else-if="showType == 2" :columns="orderCancelColumns" :data-source="orderData">
+          <template #name="{ text }">
+            <a>{{ text }}</a>
+          </template>
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'Action'">
+              <!-- <span v-if="record.Action === 0">挂单</span> -->
+              <span>撤单</span>
+            </template>
+
+            <template v-if="column.key === 'Side'">
+              <span v-if="record.Side === 0">买</span>
+              <span v-if="record.Side === 1">卖</span>
+            </template>
+
+            <template v-if="column.key === 'Status'">
+              <span v-if="record.Status === 4">已撤单</span>
+            </template>
+
+            <template v-if="column.key === 'Update' && record.Status == 0">
+              <span>
+                <a @click="cancelOrder(record.Orderid)">撤单</a>
+              </span>
+            </template>
+          </template>
+        </a-table>
+        <a-table v-else-if="showType == 3" :columns="orderTradeColumns" :data-source="orderData">
+          <template #name="{ text }">
+            <a>{{ text }}</a>
+          </template>
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'Action'">
+              <span v-if="record.Action === 0">挂单</span>
+              <span v-if="record.Action === 1">撤单</span>
+            </template>
+
+            <template v-if="column.key === 'Side'">
+              <span v-if="record.Side === 0">买</span>
+              <span v-if="record.Side === 1">卖</span>
+            </template>
+
+            <template v-if="column.key === 'Amount'">
+              <span>{{record.Deal_amount}}/{{record.Amount}}</span>
+            </template>
+
+            <template v-if="column.key === 'Status'">
+              <span v-if="record.Status === 0">未成交</span>
+              <span v-if="record.Status === 1">交易成功</span>
+              <span v-if="record.Status === 2">部分成交</span>
+              <span v-if="record.Status === 3">已撤单</span>
+            </template>
+
+            <template v-if="column.key === 'Update' && record.Status == 0">
+              <span>
+                <a @click="cancelOrder(record.Orderid)">撤单</a>
+              </span>
+            </template>
+          </template>
+        </a-table>
+        <a-table v-if="showType == 4" :columns="orderTradeDetailColumns" :data-source="orderData">
+          <template #name="{ text }">
+            <a>{{ text }}</a>
+          </template>
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'takerside'">
+              <span v-if="record.takerside == 0">买</span>
+              <span v-if="record.takerside == 1">卖</span>
+            </template>
+            <template v-if="column.key === 'TName'">
+              <span v-if="record.takerside == 0">{{record.TName}}（买）</span>
+              <span v-if="record.takerside == 1">{{record.TName}}（卖）</span>
+            </template>
+          </template>
+        </a-table>
+      </a-layout-content>
+    </a-layout>
+    <!-- <a-layout-footer>Footer</a-layout-footer> -->
+  </a-layout>
+</template>
+
+<script>
+import { defineComponent, ref, reactive, inject, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
+import request from '@/utils/request'
+
+export default defineComponent({
+  setup() {
+
+    const priceFlag = ref(true);
+    const symbol = ref('BTC');
+    const wsClient = inject("wsClient"); // 接收注入
+    const router = useRouter();
+    const topNData = ref("");
+    const user = reactive({
+      name: "游客",
+      money: 0,
+      totalMoney: 0,
+      stocks: []
+    });
+    const formState = reactive({
+      symbol: "BTC",
+      action: 0,
+      type: 0,
+      side: 0,
+      amount: 0,
+      price: 0,
+    });
+    const createShow = ref(true);
+    const showType = ref(1);
+    const orderData = ref([]);
+    const orderColumns = [
+    {
+        title: '交易标',
+        dataIndex: 'Symbol',
+    },
+    {
+        title: '买/卖',
+        key: 'Side',
+        dataIndex: 'Side',
+    },
+    {
+        title: '价格',
+        key: 'Price',
+        dataIndex: 'Price',
+        align: 'right',
+    },
+    {
+        title: '成交/挂单',
+        key: 'Amount',
+        dataIndex: 'Amount',
+        align: 'right',
+    },
+    {
+        title: '创建时间',
+        key: 'Create_time',
+        dataIndex: 'Create_time',
+    },
+    {
+        title: '订单ID',
+        dataIndex: 'Orderid',
+        key: 'Orderid',
+    },
+    {
+        title: '操作',
+        key: 'Update',
+        dataIndex: 'Update',
+    }];
+
+    const orderCancelColumns = [
+    {
+        title: '交易标',
+        dataIndex: 'Symbol',
+    },
+    {
+        title: '买/卖',
+        key: 'Side',
+        dataIndex: 'Side',
+    },
+    {
+        title: '价格',
+        key: 'Price',
+        dataIndex: 'Price',
+        align: 'right',
+    },
+    {
+        title: '数量',
+        key: 'Amount',
+        dataIndex: 'Amount',
+        align: 'right',
+    },
+    {
+        title: '创建时间',
+        key: 'Create_time',
+        dataIndex: 'Create_time',
+    },
+    {
+        title: '订单ID',
+        dataIndex: 'Orderid',
+        key: 'Orderid',
+    },
+    ];
+    const orderTradeColumns = [
+    {
+        title: '交易标',
+        dataIndex: 'Symbol',
+    },
+    {
+        title: '买/卖',
+        key: 'Side',
+        dataIndex: 'Side',
+    },
+    {
+        title: '价格',
+        key: 'Price',
+        dataIndex: 'Price',
+        align: 'right',
+    },
+    {
+        title: '成交/挂单',
+        key: 'Amount',
+        dataIndex: 'Amount',
+        align: 'right',
+    },
+    {
+        title: '交易后的余额',
+        key: 'Deal_money',
+        dataIndex: 'Deal_money',
+        align: 'right',
+    },
+    {
+        title: '交易后的物品存量',
+        key: 'Deal_stock',
+        dataIndex: 'Deal_stock',
+        align: 'right',
+    },
+    {
+        title: '订单ID',
+        dataIndex: 'Orderid',
+        key: 'Orderid',
+    },
+    {
+        title: '创建时间',
+        key: 'Create_time',
+        dataIndex: 'Create_time',
+    }
+    ];
+    const orderTradeDetailColumns= [
+      {
+        title: '价格',
+        dataIndex: 'price',
+        key: 'price',
+        align: 'right',
+      },
+      {
+        title: '数量',
+        dataIndex: 'amount',
+        key: 'amount',
+        align: 'right',
+      },
+      {
+        title: '时间',
+        dataIndex: 'deal_time',
+        key: 'deal_time',
+      },
+      {
+        title: '吃单用户',
+        dataIndex: 'TName',
+        key: 'TName',
+      },
+      {
+        title: '吃单ID',
+        dataIndex: 'takerid',
+        key: 'takerid',
+      },
+      // {
+      //   title: '吃单类型',
+      //   dataIndex: 'takerside',
+      //   key: 'takerside',
+      // },
+      {
+        title: '挂单ID',
+        dataIndex: 'makerid',
+        key: 'makerid',
+      },
+      {
+        title: '挂单用户',
+        dataIndex: 'MName',
+        key: 'MName',
+      },
+    ];
+
+    const topNDataColumns = [
+      {
+        title: '类型',
+        dataIndex: 'name',
+        key: 'name',
+      },
+      {
+        title: '价格',
+        dataIndex: 'price',
+        key: 'price',
+        align: 'right',
+      },
+      {
+        title: '数量',
+        dataIndex: 'amount',
+        key: 'amount',
+        align: 'right',
+      },
+    ];
+    const topNDataTable = ref([]);
+
+    // const addOrder = (event) => {
+    //     router.push({name: "addOrder"})
+    // };
+
+    // const showOrders = (event) => {
+    //   router.push({name: "showOrders"})
+    // };
+
+    // 初始化函数
+    const Init = () => {
+      reViewTopN();
+      reViewOrders()
+      getUserInfo();
+    };
+
+    const cancelOrder = (orderId) => {
+      // 取消订单
+      const params = {"msgdata":{Symbol: symbol.value, Action: 1, OrderId: orderId},"msgtype":1}
+      wsClient.sendCustomMsg(params, (res) => {
+        if(res.code == 0) {
+          message.success('撤单成功！', 1);
+          reViewOrders(symbol);
+        } else {
+          message.error('撤单失败！', 1);
+        }
+      });
+    }
+
+    const logOut = (event) => {
+      localStorage.removeItem("token")
+      router.push({name: "login"})
+    };
+
+    const timer = setInterval(() => {
+        //需要定时执行的代码
+        Init();
+    }, 5000)
+
+    // 切换交易标，重新拉取数据
+    const onChangeSymbol = (event)=>{
+      symbol.value = event.target.value;
+      topNData.value = [];
+      orderData.value = [];
+      reViewTopN();
+      reViewOrders();
+    };
+
+    // 重新渲染TopN
+    const reViewTopN = () => {
+      // ws发送消息
+      let msg = {"msgdata2":{ "symbol": symbol.value },"msgtype": 3};
+      wsClient.sendCustomMsg(msg, (res) => {
+        if(res.code == 0) {
+          topNData.value = res.data
+
+          // 把买单和卖单push到数据中
+          topNDataTable.value = [];
+          if(res.data.sell && typeof(res.data.sell) == "object") {
+            res.data.sell.forEach(v => {
+              v.name = "卖" + v.id
+              topNDataTable.value.push(v)
+            });
+          }
+          topNDataTable.value.push({amount:"", price:res.data.now, name:"最新价"})
+          if(res.data.buy && typeof(res.data.buy) == "object") {
+            res.data.buy.forEach(v => {
+              v.name = "买" + v.id
+              topNDataTable.value.push(v)
+            });
+          }
+        } else {
+          console.log("获取topN数据失败");
+        }
+      });
+    };
+    
+    // 重新渲染订单
+    const reViewOrders = () => {
+      // ws发送消息
+      let msg = {"msgdata2":{ "status": showType.value, "symbol": symbol.value },"msgtype": 2};
+      wsClient.sendCustomMsg(msg, (res) => {
+        if(res.code == 0) {
+          orderData.value = res.data;
+        } else {
+          message.warn("用户信息查询失败！", 1);
+        }
+      })
+    };
+
+    const getUserInfo = () => {
+      // ws发送消息
+      let msg = {"msgtype": 4};
+      wsClient.sendCustomMsg(msg, (res) => {
+        if(res.code == 0) {
+          user.name = res.data.name;
+          user.money = res.data.money;
+          user.totalMoney = res.data.money + res.data.band_money;
+          if(res.data.Stocks) {
+            user.stocks = [];
+            for (let i in res.data.Stocks) {
+              user.stocks.push(res.data.Stocks[i]);
+            }
+          }          
+        } else {
+          message.warn("查询失败！", 1);
+        }
+      })
+    };
+
+    onMounted(() => {
+      Init();
+    });
+
+    onUnmounted(() => {
+      clearInterval(timer);
+    });
+
+    const handleFinish = values => {
+      // 用websocket请求
+      // {"msgdata":{"Symbol":"BTC","Action":0,"Side":0,"Amount":46,"Price":17.8},"msgtype":1}
+      const params = {"msgdata":{Symbol: formState.symbol, Action: formState.action, Side: formState.side, Amount: parseFloat(formState.amount), Price: parseFloat(formState.price)},"msgtype":1}
+
+      wsClient.sendCustomMsg(params, (data) => {
+        if(data.code == 0) {
+          message.success('挂单成功！', 1);
+        } else {
+          message.error('挂单失败！', 1);
+        }
+        getUserInfo();
+      });
+      console.log(values, formState);
+    };
+
+    const handleFinishFailed = errors => {
+      console.log(errors);
+    };
+
+    const onChangeAction = (event) => {
+      if(event == 1) {
+        // cancel
+        createShow.value = false;
+      } else {
+        // create
+        createShow.value = true;
+      }
+    };
+    // 改变create交易标
+    const onChangeCreateSymbol = (event) => {
+      
+    };
+    
+    const onChangeOrderShow = (event) => {
+      showType.value = parseInt(event.target.value);
+      reViewOrders();
+    };
+
+    // 机器人挂单
+    const robotCreateOrder = (event) => {
+      // 用axios请求接口
+      let data = {symbol: symbol.value};
+      request.post('http://10.0.17.84:8081/order/orderCreate', data).then((res) => {
+        // 判断
+        if(res.data.code === 0) {
+          message.success(res.data.msg, 1);
+        }
+      })
+    };
+
+    return {
+      Init,
+      logOut,
+      onChangeSymbol,
+      cancelOrder,
+      handleFinish,
+      handleFinishFailed,
+      onChangeAction,
+      onChangeCreateSymbol,
+      onChangeOrderShow,
+      symbol,
+      timer,
+      user,
+      formState,
+      createShow,
+      showType,
+      topNData,
+      topNDataColumns,
+      topNDataTable,
+      orderData,
+      orderColumns,
+      orderCancelColumns,
+      orderTradeColumns,
+      orderTradeDetailColumns,
+      robotCreateOrder,
+    };
+  },
+
+  components: {
+    
+  },
+});
+</script>

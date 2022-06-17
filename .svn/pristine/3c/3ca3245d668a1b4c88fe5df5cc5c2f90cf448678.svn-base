@@ -1,0 +1,43 @@
+import axios from 'axios'
+
+const token = localStorage.getItem("token");
+let service = axios;
+if(token){
+  // 如果token有值，在响应头里加上
+  service = axios.create({ // 创建axios实例
+    headers: {
+        authorization: "bearer " + token
+    }
+  })
+}
+
+// post请求头
+service.defaults.headers.post['Content-Type'] = 'multipart/form-data;charset=UTF-8'
+
+// 添加请求拦截器
+service.interceptors.request.use(function (resp) {
+  // 在发送请求之前做些什么
+  // 响应的时候，如果有token，就保存到localstorage
+  if(resp.headers.authorization) {
+    localStorage.setItem("token", resp.headers.authorization);
+  }
+  return resp;
+}, function (error) {
+  // 如果响应状态码为403（token过期或无效），删除token
+  if(err.response.status == 403) {
+    localStorage.removeItem("token");
+  }
+  return Promise.reject(error)
+})
+
+// 添加响应拦截器
+service.interceptors.response.use(function (resp) {
+  // 对响应数据做点什么
+  console.log('res', resp)
+  return resp
+}, function (error) {
+  // 对响应错误做点什么
+  return Promise.reject(error)
+})
+
+export default service

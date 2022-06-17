@@ -1,0 +1,51 @@
+<template>
+  <a-button type="primary" @click="addOrder">挂单</a-button>
+  <a-button type="primary" @click="showOrders">查看所有订单</a-button>
+  <a-button type="primary" @click="showTop5">Top5</a-button>
+  <a-button type="primary" @click="logOut">退出</a-button>
+</template>
+
+<script>
+import { UserOutlined, LockOutlined } from '@ant-design/icons-vue';
+import { defineComponent, reactive } from 'vue';
+import { useRouter } from 'vue-router';
+
+export default defineComponent({
+  setup() {
+
+    const router = useRouter();
+
+    const addOrder = (event) => {
+        router.push({name: "addOrder"})
+    };
+
+    const showOrders = (event) => {
+      router.push({name: "showOrders"})
+    };
+
+    const showTop5 = (event) => {
+      
+    };
+
+    const logOut = (event) => {
+      localStorage.removeItem("token")
+      router.push({name: "login"})
+    };
+
+
+    return {
+      addOrder,
+      showOrders,
+      showTop5,
+      logOut,
+    };
+
+    
+  },
+
+  components: {
+    UserOutlined,
+    LockOutlined,
+  },
+});
+</script>

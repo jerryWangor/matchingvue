@@ -1,0 +1,35 @@
+<template>
+    添加订单
+</template>
+
+<script>
+import { defineComponent, inject, onMounted, onUnmounted } from 'vue';
+
+export default defineComponent({
+  setup() {
+    const wsClient = inject("wsClient"); // 接收注入
+
+    const addOrderMessage = (res) => {      
+      const data = JSON.parse(res.data);
+      console.log("接收消息：", data)
+      // do something
+    };
+
+    onMounted(() => {
+      wsClient.addMessageList("addOrderMessage", addOrderMessage)
+    });
+
+    onUnmounted(()=>{
+      wsClient.removeMessageList("addOrderMessage")
+    });
+    
+    return {
+
+    };
+  },
+
+  components: {
+
+  },
+});
+</script>

@@ -1,0 +1,176 @@
+<template>
+<a-col :xs="20" :sm="20" :md="12" :lg="6" :xl="6" :offset="8">
+  <a-form
+    layout="horizontal"
+    :label-col="{ span: 8 }"
+    :wrapper-col="{ span: 16 }"
+    :model="formState"
+    @finish="handleFinish"
+    @finishFailed="handleFinishFailed"
+    style="margin: 100px auto; text-align:center"
+  >
+  <span>用户：{{user.name}}，总市值：{{user.totalMoney}}，可用金额：{{user.money}}，货币存量：{{ user.stock }}</span>
+    <a-form-item label="交易标">
+      <a-select v-model:value="formState.symbol" placeholder="请选择" @change="onChangeSymbol">
+        <a-select-option value="BTC">BTC</a-select-option>
+        <a-select-option value="USDT">USDT</a-select-option>
+      </a-select>
+    </a-form-item>
+    <a-form-item label="挂单类型">
+      <a-select v-model:value="formState.action" placeholder="请选择" @change="onChangeAction">
+        <a-select-option :value=0>挂单</a-select-option>
+        <!-- <a-select-option :value=1>撤单</a-select-option> -->
+      </a-select>
+    </a-form-item>
+    <div v-show="createShow">
+      <a-form-item label="竞价类型">
+        <a-select v-model:value="formState.type" placeholder="请选择">
+          <a-select-option :value=0>普通竞价</a-select-option>
+        </a-select>
+      </a-form-item>
+      <a-form-item label="交易类型">
+        <a-select v-model:value="formState.side" placeholder="请选择">
+          <a-select-option :value=0>买</a-select-option>
+          <a-select-option :value=1>卖</a-select-option>
+        </a-select>
+      </a-form-item>
+      <a-form-item label="价格">
+        <a-input v-model:value="formState.price" />
+      </a-form-item>
+      <a-form-item label="数量">
+        <a-input v-model:value="formState.amount" />
+      </a-form-item>
+      <a-form-item :wrapper-col="{ span: 14, offset: 8 }">
+        <a-button
+            type="primary"
+            html-type="submit"
+            :disabled="formState.amount === 0 || formState.price === 0"
+          >
+            提交
+          </a-button>
+        <a-button style="margin-left: 15px" @click="onReturn">返回</a-button>
+      </a-form-item>
+    </div>
+    <!-- <div v-show="!createShow">
+      <a-col :span="4" :offset="10">
+      <a-form-item label="订单号">
+        <a-input v-model:value="formState.amount" />
+      </a-form-item>
+      </a-col>
+    </div> -->
+  </a-form>
+  </a-col>
+</template>
+
+<script>
+import { defineComponent, ref, inject, onMounted, onUnmounted, reactive, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
+
+export default defineComponent({
+  setup() {
+    const wsClient = inject("wsClient"); // 接收注入
+
+    const router = useRouter();
+    const formState = reactive({
+      symbol: "BTC",
+      action: 0,
+      type: 0,
+      side: 0,
+      amount: 0,
+      price: 0,
+    });
+    const user = reactive({
+      name: "游客",
+      money: 0,
+      totalMoney: 0,
+      stock: 0,
+      stocks: {}
+    });
+
+    const handleFinish = values => {
+      // 用websocket请求
+      const params = {"msgdata":{Symbol: formState.symbol, Action: formState.action, Side: formState.side, Amount: parseFloat(formState.amount), Price: parseFloat(formState.price)},"msgtype":1}
+
+      wsClient.sendCustomMsg(params, (data) => {
+        if(data.code == 0) {
+          message.success('挂单成功！');
+        } else {
+          message.error('挂单失败！');
+        }
+        getUserInfo();
+      });
+      console.log(values, formState);
+    };
+
+    const handleFinishFailed = errors => {
+      console.log(errors);
+    };
+
+    const onReturn = () => {
+      // 返回前一页，如果不刷新可以考虑跳转到home
+      router.go(-1);
+    };
+
+    // 改变交易标
+    const onChangeSymbol = (event) => {
+      if(user.stocks[event]) {
+        user.stock = user.stocks[event].StockNum;
+      } else {
+        user.stock = 0;
+      }
+    };
+
+    // 改变挂单
+    const createShow = ref(true);
+    const onChangeAction = (event) => {
+      if(event == 1) {
+        // cancel
+        createShow.value = false;
+      } else {
+        // create
+        createShow.value = true;
+      }
+    };
+
+    const getUserInfo = () => {
+      // ws发送消息
+      let msg = {"msgtype": 4};
+      wsClient.sendCustomMsg(msg, (res) => {
+        if(res.code == 0) {
+          console.log(user)
+          user.name = res.data.name;
+          user.money = res.data.money;
+          user.totalMoney = res.data.money + res.data.band_money;
+          if(res.data.Stocks && res.data.Stocks[formState.symbol]) {
+            user.stock = res.data.Stocks[formState.symbol].StockNum;
+            user.stocks = res.data.Stocks;
+          }          
+        } else {
+          message.warn("查询失败！");
+        }
+      })
+    };
+
+    onMounted(() => {
+      // 请求用户信息
+      getUserInfo();
+    });
+
+    return {
+      formState,
+      handleFinish,
+      handleFinishFailed,
+      onReturn,
+      onChangeAction,
+      onChangeSymbol,
+      createShow,
+      user,
+    };
+  },
+
+  components: {
+
+  },
+});
+</script>

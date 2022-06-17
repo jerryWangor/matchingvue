@@ -1,0 +1,138 @@
+<template>
+  <a-form
+    layout="horizontal"
+    :model="formState"
+    @finish="handleFinish"
+    @finishFailed="handleFinishFailed"
+    style="margin: 100px auto; text-align:center"
+  >
+    <a-col :span="4">
+      <a-form-item >
+        <a-input v-model:value="formState.user" placeholder="Username">
+          <template #prefix><UserOutlined style="color: rgba(0, 0, 0, 0.25)" /></template>
+        </a-input>
+      </a-form-item>
+    </a-col>
+    <a-col :span="4">
+      <a-form-item>
+        <a-input v-model:value="formState.pass" type="password" placeholder="Password">
+          <template #prefix><LockOutlined style="color: rgba(0, 0, 0, 0.25)" /></template>
+        </a-input>
+      </a-form-item>
+    </a-col>
+    <a-col :span="4">
+      <a-form-item>
+        <a-button
+          type="primary"
+          html-type="submit"
+          :disabled="formState.user === '' || formState.pass === ''"
+        >
+          登录
+        </a-button>
+      </a-form-item>
+    </a-col>
+  </a-form>
+
+  <a-alert v-model:message="message.loginMessage" type="success" />
+
+</template>
+
+
+<script>
+import { UserOutlined, LockOutlined } from '@ant-design/icons-vue';
+import { defineComponent, reactive, ref } from 'vue';
+import request from '@/utils/request'
+import { useRouter } from 'vue-router';
+
+export default defineComponent({
+  setup() {
+
+    const router = useRouter();
+    const formState = reactive({
+      user: '',
+      pass: '',
+    });
+
+    const message = reactive({
+      loginMessage: '请登录',
+    });
+
+    const rules = {
+      user: [
+        {
+          required: true,
+          message: 'Please input user',
+          trigger: 'blur',
+        },
+      ],
+      pass: [
+        {
+          required: true,
+          message: 'Please select pass',
+          trigger: 'change',
+        },
+      ],
+    };
+
+    const { proxy } = getCurrentInstance();
+
+    const handleFinish = values => {
+      // 用axios请求接口
+      request.post('/http?user=typ&pass=type', formState).then((res) => {
+        // 判断
+        if(res.data.code === 0) {
+          if(res.data.data.token != "") {
+            localStorage.setItem('token', res.data.data.token)
+            
+            message.loginMessage = '登录成功，正在连接websocket'
+            
+            setTimeout(() => {
+              // 连接ws
+              proxy.$websocket.ws = new WebSocket("ws://10.20.10.68:8888/接口地址");    填写通讯地址
+
+              proxy.$websocket.setWs(proxy.$websocket.ws);
+              proxy.$websocket.ws.onopen = () => {   // 连接地址
+
+              console.log("连接成功");
+              proxy.$websocket.ws.send(msg);   // send向服务器发送消息
+              };
+              proxy.$websocket.ws.onerror = (e) => {
+              console.log("连接错误信息", e);
+              };
+              proxy.$websocket.ws.onclose = () => {
+              console.log("断开重连");
+              setTimeout(function() {
+              proxy.$websocket.ws.onopen();
+              }, 1000);
+              };
+              });
+
+              setTimeout(() => {
+                // 跳转到主页
+                router.push({name: "home"})
+              }, 1500);
+            }, 1500);
+          }
+        }
+      })
+      console.log(values, formState);
+    };
+
+    const handleFinishFailed = errors => {
+      console.log(errors);
+    };
+
+    return {
+      formState,
+      handleFinish,
+      handleFinishFailed,
+      message,
+    };
+  },
+
+  components: {
+    UserOutlined,
+    LockOutlined,
+  },
+});
+</script>

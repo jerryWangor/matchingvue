@@ -1,0 +1,19 @@
+import Home from "../views/home/home"
+import Login from "../views/login/login"
+
+const routes = [
+  {
+    path: "/home",
+    name: "Home",
+    component: Home,
+    meta: {
+      needLogin: true //需要加校检判断的路由
+    },
+  },
+  {
+    path: "/login",
+    name: "Login",
+    component: Login,
+  },
+]
+export default routes

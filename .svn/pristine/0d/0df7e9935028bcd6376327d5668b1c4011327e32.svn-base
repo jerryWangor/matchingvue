@@ -1,0 +1,170 @@
+<style scoped>
+  .top-20 {
+    margin-top: 20px
+  }
+</style>
+
+<template>
+  <a-layout>
+    <a-layout-header>
+      <div class="top-10">
+        <a-button type="primary" @click="addOrder">挂单</a-button>
+        <a-button type="primary" @click="showOrders">查看所有订单</a-button>
+        <a-button type="primary" @click="logOut">退出</a-button>
+      </div>
+    </a-layout-header>
+    <a-layout>
+      <a-layout-sider theme="light" width="50%" class="height: 100%">
+        <h3 :style="{ marginBottom: '16px', marginTop: '16px' }"> 用户：{{user.name}}，余额：{{user.money}}</h3>
+        <a-col :span="8" :offset="8">
+          <a-list :grid="{ gutter: 6, xs: 1, sm: 1, md: 1, lg: 1, xl: 1, xxl: 1 }" item-layout="horizontal" size="small" bordered :data-source="user.stocks">
+          <template #header>
+              <a-list-item>我的存量</a-list-item>
+            </template>
+            <template #renderItem="{ item }">
+              <a-list-item>{{ item.Symbol }} - {{ item.StockNum }}</a-list-item>
+            </template>
+          </a-list>
+        </a-col>
+
+      </a-layout-sider>
+      <a-layout-content>
+        <div class="top-20">
+          <a-radio-group v-model:value="symbol" button-style="solid" @change="onChangeSymbol">
+            <a-radio-button value="BTC">BTC</a-radio-button>
+            <a-radio-button value="USDT">USDT</a-radio-button>
+          </a-radio-group>
+        </div>
+
+        <a-row class="top-20">
+          <a-col :span="24">
+            <a-statistic title="当前价格" :value="topNData.now" />
+          </a-col>
+        </a-row>
+
+        <a-col :span="8" :offset="8">
+          <a-list :grid="{ gutter: 6, xs: 1, sm: 1, md: 1, lg: 1, xl: 1, xxl: 1 }" item-layout="horizontal" size="small" bordered :data-source="topNData.sell">
+            <template #renderItem="{ item }">
+              <a-list-item>{{ item.price }} - {{ item.amount }}</a-list-item>
+            </template>
+            <template #header>
+              <a-list-item>卖单</a-list-item>
+            </template>
+          </a-list>
+
+          <a-list :grid="{ gutter: 6, xs: 1, sm: 1, md: 1, lg: 1, xl: 1, xxl: 1 }" item-layout="horizontal" size="small" bordered :data-source="topNData.buy">
+            <template #renderItem="{ item }">
+              <a-list-item>{{ item.price }} - {{ item.amount }}</a-list-item>
+            </template>
+            <template #header>
+              <a-list-item>买单</a-list-item>
+            </template>
+          </a-list>
+        </a-col>
+      </a-layout-content>
+    </a-layout>
+    <!-- <a-layout-footer>Footer</a-layout-footer> -->
+  </a-layout>
+</template>
+
+<script>
+import { defineComponent, ref, reactive, inject, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
+
+export default defineComponent({
+  setup() {
+
+    const symbol = ref('BTC');
+    const wsClient = inject("wsClient"); // 接收注入
+    const router = useRouter();
+    const topNData = ref("");
+    const user = reactive({
+      name: "游客",
+      money: 0,
+      stocks: []
+    });
+
+    const addOrder = (event) => {
+        router.push({name: "addOrder"})
+    };
+
+    const showOrders = (event) => {
+      router.push({name: "showOrders"})
+    };
+
+    const logOut = (event) => {
+      localStorage.removeItem("token")
+      router.push({name: "login"})
+    };
+
+    const timer = setInterval(() => {
+        //需要定时执行的代码
+        reViewTopN(symbol);
+        getUserInfo();
+    }, 5000)
+
+    // 切换交易标，重新拉取数据
+    const onChangeSymbol = (event)=>{
+      symbol.value = event.target.value;
+      topNData.value = [];
+      reViewTopN(symbol);
+    };
+
+    // 重新渲染TopN
+    const reViewTopN = (val) => {
+      // ws发送消息
+      let msg = {"msgdata2":{ "symbol": val.value },"msgtype": 3};
+      wsClient.sendCustomMsg(msg, (res) => {
+        if(res.code == 0) {
+          topNData.value = res.data
+        } else {
+          console.log("获取topN数据失败");
+        }
+      });
+    };
+
+    const getUserInfo = () => {
+      // ws发送消息
+      let msg = {"msgtype": 4};
+      wsClient.sendCustomMsg(msg, (res) => {
+        if(res.code == 0) {
+          user.name = res.data.name;
+          user.money = res.data.money;
+          if(res.data.Stocks) {
+            user.stocks = [];
+            for (let i in res.data.Stocks) {
+              user.stocks.push(res.data.Stocks[i]);
+            }
+          }          
+        } else {
+          message.warn("查询失败！");
+        }
+      })
+    };
+
+    onMounted(() => {
+      reViewTopN(symbol);
+      getUserInfo();
+    });
+
+    onUnmounted(() => {
+      clearInterval(timer);
+    });
+
+    return {
+      addOrder,
+      showOrders,
+      logOut,
+      symbol,
+      onChangeSymbol,
+      topNData,
+      timer,
+      user,
+    };
+  },
+
+  components: {
+    
+  },
+});
+</script>

@@ -1,0 +1,130 @@
+<template>
+  <a-form
+    layout="horizontal"
+    :model="formState"
+    @finish="handleFinish"
+    @finishFailed="handleFinishFailed"
+    style="margin: 100px auto; text-align:center"
+  >
+    <a-col :span="4">
+    <a-form-item label="交易标">
+      <a-select v-model:value="formState.symbol" placeholder="请选择">
+        <a-select-option value="BTC">BTC</a-select-option>
+        <a-select-option value="USDT">USDT</a-select-option>
+      </a-select>
+    </a-form-item>
+    </a-col>
+    <a-col :span="4">
+    <a-form-item label="挂单类型">
+      <a-select v-model:value="formState.action" placeholder="请选择">
+        <a-select-option :value="0">挂单</a-select-option>
+        <a-select-option :value="1">撤单</a-select-option>
+      </a-select>
+    </a-form-item>
+    </a-col>
+    <a-col :span="4">
+    <a-form-item label="竞价类型">
+      <a-select v-model:value="formState.type" placeholder="请选择">
+        <a-select-option :value="0">普通竞价</a-select-option>
+      </a-select>
+    </a-form-item>
+    </a-col>
+    <a-col :span="4">
+    <a-form-item label="交易类型">
+      <a-select v-model:value="formState.side" placeholder="请选择">
+        <a-select-option :value="0">买</a-select-option>
+        <a-select-option :value="1">卖</a-select-option>
+      </a-select>
+    </a-form-item>
+    </a-col>
+    <a-col :span="4">
+    <a-form-item label="数量">
+      <a-input v-model:value="formState.amount" />
+    </a-form-item>
+    </a-col>
+    <a-col :span="4">
+    <a-form-item label="价格">
+      <a-input v-model:value="formState.price" />
+    </a-form-item>
+    </a-col>
+    <a-col :span="4">
+    <a-form-item :wrapper-col="{ span: 14, offset: 4 }">
+      <a-button
+          type="primary"
+          html-type="submit"
+          :disabled="formState.amount === '' || formState.price === ''"
+        >
+          提交
+        </a-button>
+      <a-button style="margin-left: 15px" @click="onReturn">返回</a-button>
+    </a-form-item>
+    </a-col>
+  </a-form>
+</template>
+
+<script>
+import { defineComponent, inject, onMounted, onUnmounted, reactive } from 'vue';
+import { useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
+
+export default defineComponent({
+  setup() {
+    const wsClient = inject("wsClient"); // 接收注入
+
+    const addOrderMessage = (res) => {      
+      const data = JSON.parse(res.data);
+      console.log("接收消息：", data)
+      if(data.code == 0) {
+        message.success('挂单成功！');
+      } else {
+        message.error('挂单失败！');
+      }
+    };
+
+    onMounted(() => {
+      wsClient.addMessageList("addOrderMessage", addOrderMessage)
+    });
+
+    onUnmounted(()=>{
+      wsClient.removeMessageList("addOrderMessage")
+    });
+
+    const router = useRouter();
+    const formState = reactive({
+      symbol: "BTC",
+      action: 0,
+      type: 0,
+      side: 0,
+      amount: 0,
+      price: 0,
+    });
+
+    const handleFinish = values => {
+      // 用websocket请求
+      const params = {Symbol: formState.symbol, Action: formState.action, Side: formState.side, Amount: formState.amount, Price: formState.price}
+      wsClient.sendCustomMsg(params)
+      console.log(values, formState);
+    };
+
+    const handleFinishFailed = errors => {
+      console.log(errors);
+    };
+
+    const onReturn = () => {
+      // 返回前一页
+      router.go(-1);
+    };
+    
+    return {
+      formState,
+      handleFinish,
+      handleFinishFailed,
+      onReturn,
+    };
+  },
+
+  components: {
+
+  },
+});
+</script>

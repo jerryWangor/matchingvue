@@ -1,0 +1,36 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import routes from './routes'
+
+const router = createRouter({
+  history: createWebHistory(process.env.BASE_URL),
+  routes
+
+})
+
+// 导航守卫
+router.beforeEach((to, from, next) => {
+  if (to.meta.needLogin) {
+    // 页面是否登录
+    if (localStorage.getItem('token')) {
+      // 本地存储中是否有token(uid)数据
+      next() // 表示已经登录
+    } else {
+      // next可以传递一个路由对象作为参数 表示需要跳转到的页面
+      // next({
+      //   name: 'login'
+      // })
+      next() // 表示已经登录
+    }
+  } else {
+    // 表示不需要登录
+    /* 必须调用 `next` */
+    next()
+  }
+})
+router.beforeResolve((to, from, next) => {
+  next()
+  /* 必须调用 `next` */
+})
+router.afterEach((to, from) => { })
+
+export default router

@@ -1,0 +1,119 @@
+
+<template>
+
+    <a-button style="margin-left: 15px" @click="onReturn">返回</a-button>
+  <a-table :columns="columns" :data-source="data">
+    <template #name="{ text }">
+      <a>{{ text }}</a>
+    </template>
+
+    <template #update="{ record }">
+      <span>
+        <a @click="cancelOrder(record.OrderId)">Cancel</a>
+        <a-divider type="vertical" />
+      </span>
+    </template>
+    </a-table>
+</template>
+
+<script>
+import { defineComponent, inject, onMounted, onUnmounted, reactive } from 'vue';
+import { useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
+import { SmileOutlined, DownOutlined } from '@ant-design/icons-vue';
+
+export default defineComponent({
+  setup() {
+    const wsClient = inject("wsClient"); // 接收注入
+
+    const columns = [
+    {
+        title: 'Symbol',
+        dataIndex: 'Symbol',
+    },
+    {
+        title: 'OrderId',
+        dataIndex: 'OrderId',
+        key: 'OrderId',
+    },
+    {
+        title: 'Action',
+        dataIndex: 'Action',
+        key: 'Action',
+    },
+    {
+        title: 'Type',
+        key: 'Type',
+        dataIndex: 'Type',
+    },
+    {
+        title: 'Side',
+        key: 'Side',
+        dataIndex: 'Side',
+    },
+    {
+        title: 'Amount',
+        key: 'Amount',
+        dataIndex: 'Amount',
+    },
+    {
+        title: 'Price',
+        key: 'Price',
+        dataIndex: 'Price',
+    },
+    {
+        title: 'update',
+        key: 'update',
+        slots: {
+            customRender: 'update',
+        },
+    }];
+
+    var data = [];
+
+    const cancelOrderMessage = (res) => {      
+      data = [
+          {key: "1", Symbol: "BTC", OrderId: "a00000001", Action: "挂单", Type: "普通竞价", Side: "买", Amount: 10000, Price: 12, Timestamp: "2022-05-23 14:00:22"},
+          {key: "2", Symbol: "BTC", OrderId: "a00000002", Action: "挂单", Type: "普通竞价", Side: "买", Amount: 10000, Price: 12, Timestamp: "2022-05-23 14:00:22"},
+          {key: "3", Symbol: "BTC", OrderId: "a00000003", Action: "挂单", Type: "普通竞价", Side: "买", Amount: 10000, Price: 12, Timestamp: "2022-05-23 14:00:22"},
+          {key: "4", Symbol: "BTC", OrderId: "a00000004", Action: "挂单", Type: "普通竞价", Side: "买", Amount: 10000, Price: 12, Timestamp: "2022-05-23 14:00:22"},
+      ]
+    };
+
+    cancelOrderMessage();
+
+    onMounted(() => {
+        // 用模拟数据生成表格
+
+        wsClient.addMessageList("cancelOrderMessage", cancelOrderMessage)
+    });
+
+    onUnmounted(()=>{
+        wsClient.removeMessageList("cancelOrderMessage")
+    });
+
+    const cancelOrder = (orderId) => {
+        // 取消订单
+        message.success(orderId + "取消成功！");
+    }
+
+    const router = useRouter();
+
+    const onReturn = () => {
+      // 返回前一页
+      router.go(-1);
+    };
+    
+    return {
+      onReturn,
+      data,
+      columns,
+      cancelOrder,
+    };
+  },
+
+  components: {
+
+  },
+});
+</script>

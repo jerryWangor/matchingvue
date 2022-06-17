@@ -1,0 +1,17 @@
+import { createApp } from 'vue'
+import App from './App.vue'
+import router from './router'
+import store from './store'
+import websocket from './utils/websocket'
+
+import Antd from 'ant-design-vue'
+
+import 'ant-design-vue/dist/antd.css'
+
+import '@/assets/style/style.scss'
+
+const app = createApp(App)
+
+app.use(Antd).use(store).use(router).mount('#app')
+
+app.config.globalProperties.$websocket = websocket

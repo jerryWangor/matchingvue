@@ -1,0 +1,27 @@
+const { defineConfig } = require('@vue/cli-service')
+
+module.exports = defineConfig({
+  lintOnSave: false,
+  transpileDependencies: true,
+
+  // module.exports = {
+  devServer: {
+    // open: true, // 自动打开浏览器
+    port: 8081,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+      'Access-Control-Allow-Headers': 'X-Requested-With, content-type, Authorization'
+    },
+    proxy: {
+      '/api': {
+        target: 'http://10.0.17.46:20002/',
+        changeOrigin: true, // 开启跨域
+        pathRewrite: {
+          '^/api': '/api'
+        }
+      }
+    }
+
+  }
+})
